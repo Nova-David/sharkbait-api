@@ -19,6 +19,11 @@ export const insert = (req, res) =>
     .insert(req.params.table, req.body)
     .then((data) => handle(data, res));
 
+export const deleteData = (req, res) =>
+  cassandra
+    .deleteFrom(req.params.table, req.body)
+    .then((data) => handle(data, res));
+
 export const select = (req, res) =>
   cassandra
     .select(req.params.table, req.body)
@@ -41,3 +46,29 @@ export const updateUser = (req, res) =>
   cassandra
     .update("users", { keys: { uid: req.params.id }, ...req.body })
     .then((data) => handle(data, res));
+
+export const addFriend = (req, res) =>
+  cassandra
+    .friendRequest(req.body)
+    .then((data) => handle(data, res));
+
+export const acceptRequest = (req, res) =>
+  cassandra
+    .acceptRequest(req.body)
+    .then((data) => handle(data, res));
+
+export const rejectRequest = (req, res) =>
+  cassandra
+    .rejectRequest(req.body)
+    .then((data) => handle(data, res));
+
+export const checkRequest = (req, res) =>
+  cassandra
+    .checkRequest(req.body)
+    .then((data) => handle(data, res));
+
+
+export const joesmith = (req, res) =>
+    cassandra
+      .friendRequest({uid: req.body.uid, friend: "joesmith"})
+      .then((data) => handle(data, res));

@@ -44,12 +44,23 @@ router.get("/users/:id", db.selectUser);
 router.post("/users/:id", db.updateUser);
 router.post("/verify", db.verifyUser);
 
+/*************************
+Friend System functions
+**************************/
+
+router.post("/friends/add", db.addFriend);
+router.post("/friends/accept", db.acceptRequest);
+router.post("/friends/reject", db.rejectRequest);
+router.post("/friends/sent", db.checkRequest);
+router.post("/friends/joesmith", db.joesmith);
+
 /***********************************
 SELECT and INSERT from/to any table
 ************************************/
 
 router.get("/:table", db.selectAll);
 router.post("/:table", db.insert);
+router.delete("/:table", db.deleteData);
 router.post("/:table/find", db.select);
 router.patch("/:table", db.update);
 

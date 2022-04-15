@@ -1,14 +1,14 @@
 {
   "files": {
     "main.css": "/db/static/css/main.e2bdf516.css",
-    "main.js": "/db/static/js/main.7867d321.js",
+    "main.js": "/db/static/js/main.56d77283.js",
     "static/media/cassandra.png": "/db/static/media/cassandra.149811b71a30d7f7a7ec.png",
     "index.html": "/db/index.html",
     "main.e2bdf516.css.map": "/db/static/css/main.e2bdf516.css.map",
-    "main.7867d321.js.map": "/db/static/js/main.7867d321.js.map"
+    "main.56d77283.js.map": "/db/static/js/main.56d77283.js.map"
   },
   "entrypoints": [
     "static/css/main.e2bdf516.css",
-    "static/js/main.7867d321.js"
+    "static/js/main.56d77283.js"
   ]
 }

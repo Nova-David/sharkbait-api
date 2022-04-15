@@ -170,6 +170,23 @@ export const update = async (table, data) => {
   });
 };
 
+export const deleteFrom = async (table, data) => {
+  console.log("...deleting data from", table);
+
+  const keys = Object.keys(data);
+  const values = Object.values(data);
+  const where = keys.map((key) => key + "=?").join(" AND ");
+
+  const query = "DELETE FROM " + table + ' WHERE ' + where;
+
+  return new Promise((resolve) => {
+    client.execute(query, values, { prepare: true }, (err, res) => {
+      if (err) resolve({ ...err, ...{ error: 1 } });
+      else resolve({ success: 1 });
+    });
+  });
+}
+
 export const checkPassword = async (data) => {
   const user = await select("users", { uid: data.uid }, true);
 
@@ -188,3 +205,129 @@ export const checkPassword = async (data) => {
     resolve(result);
   });
 };
+
+export const addFriend = async (uid, friend) => {
+  console.log("...adding a friend");
+
+  const query = "UPDATE users SET friends = friends + ? WHERE uid = ?";
+
+  return new Promise((resolve) => {
+    client.execute(query, [[friend], uid], {prepare: true}, (err, res) => {
+      if (err) resolve({...err, ...{ error: 1 }});
+      else resolve({ success: 1 });
+    });
+  });
+}
+
+export const deleteFriend = async (uid, friend) => {
+  console.log("...adding a friend");
+
+  const query = "UPDATE users SET friends = friends - ? WHERE uid = ?";
+
+  return new Promise((resolve) => {
+    client.execute(query, [[friend], uid], {prepare: true}, (err, res) => {
+      if (err) resolve({...err, ...{ error: 1 }});
+      else resolve({ success: 1 });
+    });
+  });
+}
+
+export const addRequest = async (uid, friend) => {
+  console.log("...receiving a friend request");
+
+  const query = "UPDATE users SET requests = requests + ? WHERE uid = ?";
+
+  return new Promise((resolve) => {
+    client.execute(query, [[friend], uid], {prepare: true}, (err, res) => {
+      if (err) resolve({...err, ...{ error: 1 }});
+      else resolve({ success: 1 });
+    });
+  });
+}
+
+export const deleteRequest = async (uid, friend) => {
+  console.log("...deleting a friend request");
+
+  const query = "UPDATE users SET requests = requests - ? WHERE uid = ?";
+
+  return new Promise((resolve) => {
+    client.execute(query, [[friend], uid], {prepare: true}, (err, res) => {
+      if (err) resolve({...err, ...{ error: 1 }});
+      else resolve({ success: 1 });
+    });
+  });
+}
+
+export const friendRequest = async (data) => {
+  console.log("...sending a friend request");
+
+  if (!data.uid || !data.friend) return new Promise(resolve => resolve({error: 1, message: "uid and friend keys are required."}));
+
+  data.fid = data.friend;
+  delete data.friend;
+  
+  const received = await addRequest(data.fid, data.uid);
+  if (received.error) return new Promise(resolve => resolve(received));
+
+  data.status = 1;
+
+  return await insert('friendship', data); 
+};
+
+export const acceptRequest = async (data) => {
+  console.log("...accepting a friend request");
+
+  if (!data.uid || !data.friend) return new Promise(resolve => resolve({error: 1, message: "uid and friend keys are required."}));
+
+  data.fid = data.uid;
+  data.uid = data.friend;
+  delete data.friend;
+
+
+  let received = await deleteRequest(data.fid, data.uid);
+  if (received.error) return new Promise(resolve => resolve(received));
+
+  received = await addFriend(data.uid, data.fid);
+  if (received.error) return new Promise(resolve => resolve(received));
+
+  received = await addFriend(data.fid, data.uid);
+  if (received.error) return new Promise(resolve => resolve(received));
+
+  return await deleteFrom('friendship', { uid: data.uid, fid: data.fid });
+} 
+
+export const rejectRequest = async (data) => {
+  console.log("...rejecting a friend request");
+
+  if (!data.uid || !data.friend) return new Promise(resolve => resolve({error: 1, message: "uid and friend keys are required."}));
+
+  data.fid = data.uid;
+  data.uid = data.friend;
+  delete data.friend;
+
+  const received = await deleteRequest(data.fid, data.uid);
+  if (received.error) return new Promise(resolve => resolve(received));
+
+  return await deleteFrom('friendship', { uid: data.uid, fid: data.fid });
+}
+
+export const checkRequest = async (data) => {
+  console.log("...checking requests from friendship");
+
+  if (!data.uid || !data.friend) return new Promise(resolve => resolve({error: 1, message: "uid and friend keys are required."}));
+
+  data.fid = data.friend;
+  delete data.friend;
+
+  const query = "SELECT * FROM friendship WHERE uid = ? AND fid = ?";
+
+  return new Promise((resolve) => {
+    client.execute(query, Object.values(data), {prepare: true}, (err, result) => {
+      if (err) return resolve({ ...err, ...{ error: 1 } });
+
+      var res = result.rows.length >= 1 ? { sent: true } : { sent: false };
+
+      resolve(res);
+    });
+  });
+}
