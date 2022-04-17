@@ -67,8 +67,7 @@ export const checkRequest = (req, res) =>
     .checkRequest(req.body)
     .then((data) => handle(data, res));
 
-
-export const joesmith = (req, res) =>
-    cassandra
-      .friendRequest({uid: req.body.uid, friend: "joesmith"})
-      .then((data) => handle(data, res));
+export const unfriend = (req, res) =>
+  cassandra
+    .unfriend(req.body)
+    .then((data) => handle(data, res));

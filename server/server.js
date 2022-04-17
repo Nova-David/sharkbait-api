@@ -52,7 +52,7 @@ router.post("/friends/add", db.addFriend);
 router.post("/friends/accept", db.acceptRequest);
 router.post("/friends/reject", db.rejectRequest);
 router.post("/friends/sent", db.checkRequest);
-router.post("/friends/joesmith", db.joesmith);
+router.post("/friends/remove", db.unfriend);
 
 /***********************************
 SELECT and INSERT from/to any table

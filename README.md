@@ -31,6 +31,9 @@ Friend System functions
 - POST: Check if a user has sent another user a friend request using http://api.sharkbait-app.ml/friends/sent
     > Requires { uid, friend }  
     > Returns { sent: true/false }
+- POST: Remove a user from your friends using using http://api.sharkbait-app.ml/friends/remove
+    > Requires { uid, friend }  
+    > Returns { success }
 
 **************************************
 SELECT and INSERT from/to any table 

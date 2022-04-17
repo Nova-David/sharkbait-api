@@ -331,3 +331,14 @@ export const checkRequest = async (data) => {
     });
   });
 }
+
+export const unfriend = async (data) => {
+  console.log("...removing friends");
+
+  if (!data.uid || !data.friend) return new Promise(resolve => resolve({error: 1, message: "uid and friend keys are required."}));
+
+  let received = await deleteFriend(data.uid, data.friend);
+  if (received.error) return new Promise(resolve => resolve(received));
+
+  return deleteFriend(data.friend, data.uid);
+}
