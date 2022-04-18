@@ -84,6 +84,8 @@ export const selectAll = (table) => {
 export const select = (table, data, secure = false) => {
   console.log("...select data from", table);
 
+  if(data.uid) data.uid = data.uid.toLowerCase();
+
   const keys = Object.keys(data);
   const values = Object.values(data);
   const where = keys.map((key) => key + "=?").join(" AND ");
@@ -185,6 +187,12 @@ export const deleteFrom = async (table, data) => {
       else resolve({ success: 1 });
     });
   });
+}
+
+export const insertUser = async (data) => {
+  if (!data.uid || !data.password) return new Promise(resolve => resolve({error: 1, message: "uid and password keys are required."}));
+  data.uid = data.uid.toLowerCase();
+  return await insert('users', data);
 }
 
 export const checkPassword = async (data) => {

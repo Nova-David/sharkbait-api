@@ -43,6 +43,7 @@ User functions
 router.get("/users/:id", db.selectUser);
 router.post("/users/:id", db.updateUser);
 router.post("/verify", db.verifyUser);
+router.post("/register", db.createUser);
 
 /*************************
 Friend System functions

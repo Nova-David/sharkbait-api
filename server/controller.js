@@ -34,6 +34,9 @@ export const selectUser = (req, res) =>
     .select("users", { uid: req.params.id })
     .then((data) => handle(data, res));
 
+export const createUser = (req, res) =>
+  cassandra.insertUser(req.body).then((data) => handle(data, res));
+
 export const verifyUser = (req, res) =>
   cassandra.checkPassword(req.body).then((data) => handle(data, res));
 
