@@ -340,6 +340,39 @@ export const checkRequest = async (data) => {
   });
 }
 
+export const allFriends = async (data) => {
+  console.log("...fetching all friends");
+
+  if (!data.uid) return new Promise(resolve => resolve({error: 1, message: "uid key is required."}));
+
+  const user = await select('users', { uid: data.uid });
+  if (user.error) return new Promise(resolve => resolve(user));
+
+  const friends = user.friends ? user.friends : Array();
+  const requests = user.requests ? user.requests : Array();
+
+  let res = {};
+  let friend;
+
+  for (let i = 0; i < friends.length; i++) {
+    friend = await select('users', { uid: friends[i] });
+    if (friend.error) return new Promise(resolve => resolve(friend));
+
+    res[friends[i]] = friend;
+  }
+
+  let req = {};
+  for (let i = 0; i < requests.length; i++) {
+    friend = await select('users', { uid: requests[i] });
+    if (friend.error) return new Promise(resolve => resolve(friend));
+
+    req[requests[i]] = friend;
+  }
+  
+
+  return new Promise(resolve => resolve({friends: res, requests: req}));
+}
+
 export const unfriend = async (data) => {
   console.log("...removing friends");
 
@@ -349,4 +382,241 @@ export const unfriend = async (data) => {
   if (received.error) return new Promise(resolve => resolve(received));
 
   return deleteFriend(data.friend, data.uid);
+}
+
+export const getMessages = async (data) => {
+  console.log("...getting messages");
+
+  const query = "SELECT * FROM messages WHERE chat_id = ?";
+
+  return new Promise((resolve) => {
+    client.execute(query, [data.chat_id], {prepare: true}, (err, result) => {
+      if (err) return resolve({ ...err, ...{ error: 1 } });
+      var res = [];
+      
+      const rows = result.rows;
+
+      for (let i = 0; i < rows.length; i++) {
+        res.push(rows[i]);
+      }
+
+      resolve(res);
+    });
+  });
+}
+
+export const insertMessage = async (data) => {
+  console.log("...creating a message");
+
+  const query =
+    "INSERT INTO messages (chat_id, message_id, uid, msg) VALUES (?, now(), ?, ?)";
+
+  return new Promise((resolve) => {
+    client.execute(query, [data.chat_id, data.uid, data.msg], { prepare: true }, (err, res) => {
+      if (err) resolve({ ...err, ...{ error: 1 } });
+      else resolve({ success: 1 });
+    });
+  });
+}
+
+export const updateLatestChat = async (data) => {
+  console.log("...updating latest chats");
+
+  const query = "UPDATE chats SET msg = ?, last_update = dateof(now()) WHERE chat_id = ?";
+
+  data.chat_id = cassandra.types.Uuid.fromString(data.chat_id);
+
+  return new Promise((resolve) => {
+    client.execute(query, [data.msg, data.chat_id], { prepare: true }, (err, res) => {
+      if (err) resolve({ ...err, ...{ error: 1 } });
+      else resolve({ success: 1 });
+    });
+  })
+}
+
+export const insertMessageEverywhere = async (data) => {
+  console.log("...export message to chats and messages");
+
+  let received = await insertMessage(data);
+  if (received.error) return new Promise(resolve => resolve(received));
+
+  return await updateLatestChat(data);
+}
+
+export const addInterest = async (data) => {
+  console.log("...adding an interest");
+
+  if (!data.uid || !data.interest) return new Promise(resolve => resolve({error: 1, message: "uid and interest keys are required."}));
+
+  const query = "UPDATE users SET interests = interests + ? WHERE uid = ?";
+
+  return new Promise((resolve) => {
+    client.execute(query, [[data.interest], data.uid], {prepare: true}, (err, res) => {
+      if (err) resolve({...err, ...{ error: 1 }});
+      else resolve({ success: 1 });
+    });
+  });
+}
+
+export const removeInterest = async (data) => {
+  console.log("...removing an interest");
+
+  if (!data.uid || !data.interest) return new Promise(resolve => resolve({error: 1, message: "uid and interest keys are required."}));
+
+  const query = "UPDATE users SET interests = interests - ? WHERE uid = ?";
+
+  return new Promise((resolve) => {
+    client.execute(query, [[data.interest], data.uid], {prepare: true}, (err, res) => {
+      if (err) resolve({...err, ...{ error: 1 }});
+      else resolve({ success: 1 });
+    });
+  });
+}
+
+export const chatExists = async (data) => {
+  console.log("...checking if chat exists");
+
+  if (!data.uid || !data.friend) return new Promise(resolve => resolve({error: 1, message: "1uid and friend keys are required."}));
+
+  const user = await select('users', {uid: data.uid});
+  const chats = user.chats;
+
+  if (chats) {
+    for (let i = 0; i < chats.length; i++) {
+      if (chats[i].split(":")[0] == data.friend) return chats[i].split(":")[1];
+    }
+  }
+
+  return false;
+}
+
+export const addChat = async (data) => {
+  console.log("...adding a chat");
+
+  if (!data.uid || !data.chat_id) return new Promise(resolve => resolve({error: 1, message: "uid and chat_id keys are required."}));
+
+  const query = "UPDATE users SET chats = chats + ? WHERE uid = ?";
+
+  return new Promise((resolve) => {
+    client.execute(query, [[data.chat_id], data.uid], {prepare: true}, (err, res) => {
+      if (err) resolve({...err, ...{ error: 1 }});
+      else resolve({ success: 1 });
+    });
+  });
+}
+
+export const insertChat = async (data) => {
+  console.log("...creating a message");
+
+  const uuid = cassandra.types.Uuid.random();
+
+  const query =
+    "INSERT INTO chats (chat_id, members, last_update) VALUES (?, ?, dateof(now()))";
+
+  return new Promise((resolve) => {
+    client.execute(query, [uuid, [data.uid, data.friend]], { prepare: true }, (err, res) => {
+      if (err) resolve({ ...err, ...{ error: 1 } });
+      else resolve({ uuid: uuid.toString() });
+    });
+  });
+}
+
+export const createChat = async data => {
+  console.log("...creating a new chat");
+
+  if (!data.uid || !data.friend) return new Promise(resolve => resolve({error: 1, message: "uid and friend keys are required."}));
+
+  let uuid = await insertChat(data);
+  if (uuid.error) return new Promise(resolve => resolve(uuid));
+
+  data.chat_id = data.friend + ":" + uuid.uuid;
+
+  let received = await addChat(data);
+  if (received.error) return new Promise(resolve => resolve(received));
+
+  data.chat_id = data.uid + ":" + uuid.uuid;
+  data.uid = data.friend;
+
+  received = await addChat(data);
+  if (received.error) return new Promise(resolve => resolve(received));
+
+  return new Promise(resolve => resolve({uuid: uuid.uuid}));
+}
+
+export const startChat = async data => {
+  console.log("...starting a chat with someone");
+
+  if (!data.uid || !data.friend) return new Promise(resolve => resolve({error: 1, message: "uid and friend keys are required."}));
+
+  let uuid = await chatExists(data);
+  if (uuid.error) return new Promise(resolve => resolve(uuid));
+  else if (uuid) return new Promise(resolve => resolve({uuid: uuid}));
+  else {
+    uuid = await createChat(data)
+    if (uuid.error) return new Promise(resolve => resolve(uuid));
+    else return new Promise(resolve => resolve(uuid));
+  }
+
+}
+
+export const getChats = async (data) => {
+  console.log("...getting chats");
+
+  if (!data.uid) return new Promise(resolve => resolve({error: 1, message: "uid key is required."}));
+
+  const userInfo = await select('users', {uid: data.uid});
+  if (userInfo.error) return new Promise(resolve => resolve(userInfo));
+
+  const chats = userInfo.chats;
+  if (chats == null) return new Promise(resolve => resolve([]));
+
+  let res = [];
+
+  for (let i = 0; i < chats.length; i++) {
+    let chatId = (chats[i].includes(":")) ? chats[i].split(":")[1] : chats[i];
+    let chat = await select('chats', {chat_id: chatId});
+    if (chat.error) return new Promise(resolve => resolve(chat));
+
+    chat.chat_id = chat.chat_id.toString();
+
+    let members = [];
+
+    for(let j = 0; j < chat.members.length; j++) {
+      if (chat.members[j] != data.uid) {
+        let memberInfo = await select('users', {uid: chat.members[j]});
+        if (memberInfo.error) return new Promise(resolve => resolve(memberInfo));
+
+        members.push(memberInfo);
+      }
+    }
+
+    chat.members = members;
+    res.push(chat);
+  }
+
+  return new Promise(resolve => resolve(res));
+}
+
+export const getChat = async (data) => {
+  console.log("...getting a chat");
+
+  if (!data.chat_id) return new Promise(resolve => resolve({error: 1, message: "chat_id key is required."}));
+
+  const chat = await select('chats', {chat_id: data.chat_id});
+  if (chat.error) return new Promise(resolve => resolve(chat));
+
+  chat.chat_id = chat.chat_id.toString();
+
+  let members = [];
+
+  for(let j = 0; j < chat.members.length; j++) {
+    let memberInfo = await select('users', {uid: chat.members[j]});
+    if (memberInfo.error) return new Promise(resolve => resolve(memberInfo));
+
+    members.push(memberInfo);
+  }
+
+  chat.members = members;
+
+  return new Promise(resolve => resolve(chat));
 }

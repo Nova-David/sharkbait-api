@@ -74,3 +74,62 @@ export const unfriend = (req, res) =>
   cassandra
     .unfriend(req.body)
     .then((data) => handle(data, res));
+
+export const getMessages = (chatID, res) => {
+  cassandra
+    .getMessages({chat_id: chatID})
+    .then(data => res(data))
+
+  return new Promise(resolve => resolve(chatID))
+}
+
+export const newMessage = async (req, res) => {
+  const data = await cassandra
+    .insertMessageEverywhere(req)  
+    res(req);
+  
+  return new Promise(resolve => resolve(req));
+  
+}
+
+export const addInterest = (req, res) => {
+  cassandra
+    .addInterest(req.body)
+    .then(data => handle(data, res));
+}
+
+export const removeInterest = (req, res) => {
+  cassandra
+    .removeInterest(req.body)
+    .then(data => handle(data, res));
+}
+
+export const startChat = (req, res) => {
+  cassandra
+    .startChat(req.body)
+    .then(data => handle(data, res));
+}
+
+export const selectChat = (req, res) => {
+  cassandra
+    .select('chats', {chat_id: req.params.chat})
+    .then(data => handle(data, res));
+}
+
+export const getChats = (req, res) => {
+  cassandra
+    .getChats({uid: req.params.id})
+    .then(data => handle(data, res));
+}
+
+export const getChat = (chatID, res) => {
+  cassandra
+    .getChat({chat_id: chatID})
+    .then(data => res(data));
+}
+
+export const getAllFriends = (req, res) => {
+  cassandra
+    .allFriends({uid: req.params.id})
+    .then(data => handle(data, res));
+}
