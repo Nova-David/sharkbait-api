@@ -45,6 +45,7 @@ User functions
 
 router.get("/users/:id/friends", db.getAllFriends);
 router.get("/users/:id/chats", db.getChats);
+// router.get("/users/:id/info", db.selectUser);
 router.get("/users/:id", db.selectUser);
 router.post("/users/:id", db.updateUser);
 router.post("/verify", db.verifyUser);
@@ -54,7 +55,6 @@ router.post("/register", db.createUser);
 Friend System functions
 **************************/
 
-router.post("/friends/add", db.addFriend);
 router.post("/friends/accept", db.acceptRequest);
 router.post("/friends/reject", db.rejectRequest);
 router.post("/friends/sent", db.checkRequest);
@@ -93,43 +93,6 @@ SOCKET
 io.on('connection', socket => {
   console.log("A user connected");
 
-  /*************************
-  Chat Socket Functions
-  *************************/
-
-  socket.on('getMessages', (chatID, res) => {
-    db.getMessages(chatID, res).then(data => {
-      socket.join(data);
-    });
-  });
-
-  socket.on('sendMessage', (req, res) => {
-    console.log("...sending a message");
-    const chatID = req.chat_id
-    db.newMessage(req, res).then(data => {
-      io.to(chatID).emit('newMessage', req)
-
-      db.getChat(req.chat_id, (data) => {
-        if (data.error) {
-          console.log(data);
-          return;
-        }
-        for (let i = 0; i < data.members.length; i++) {
-          
-          io.to(data.members[i].uid).emit("chatUpdate", {...data, ...{members: data.members.filter(member => member.uid != data.members[i].uid)}}, data.members[i].uid);
-        }
-      })
-    })
-  });
-
-  socket.on('typing', (req) => {
-    io.to(req.chat_id).emit("typing", req);
-  })
-
-  socket.on('disconnect', () => {
-    console.log('A user disconnected');
-  })
-
   /**********************
   User Socket Functions
   **********************/
@@ -138,6 +101,81 @@ io.on('connection', socket => {
     console.log(uid, "joined");
     socket.join(uid);
   });
+  
+  /************************
+  Friend Socket Functions
+  ************************/
+
+  socket.on("sendRequest", data => {
+    console.log(data, "received");
+    db.addFriend({uid: data.user.uid, friend: data.friend})
+      .then(() => {
+        io.to(data.friend).emit("newRequest", data.user);
+      });
+  });
+
+  socket.on("acceptRequest", data => {
+    console.log(data, "received");
+    db.acceptRequest({uid: data.user.uid, friend: data.friend.uid})
+      .then(() => {
+        io.to(data.friend.uid).emit("newFriend", data.user);
+      });
+  })
+
+  socket.on("rejectRequest", data => {
+    console.log(data, "received");
+    db.rejectRequest({uid: data.user.uid, friend: data.friend.uid})
+  })
+
+  socket.on("unfriend", data => {
+    console.log(data, "received")
+    db.unfriend({uid: data.user.uid, friend: data.friend.uid})
+      .then(() => {
+        io.to(data.friend.uid).emit("unfriend", data.user);
+      });
+  })
+
+
+  /*************************
+  Chat Socket Functions
+  *************************/
+
+  socket.on('joinChat', (chatID) => {
+    socket.join(chatID);
+    console.log(socket.rooms);
+  })
+
+  socket.on('leaveChat', (chatID) => {
+    socket.leave(chatID);
+    console.log(socket.rooms);
+  })
+
+  socket.on('getMessages', (chatID, res) => {
+    db.getMessages(chatID, res).then(data => {
+      socket.join(data);
+    });
+  });
+
+  socket.on('sendMessage', (data) => {
+    console.log(data);
+    
+    db.newMessage(data.msg);
+    
+    for (let i = 0; i < data.to.length; i++) {
+      let members = data.to;
+      members = members.concat([data.from]);
+      members = members.filter(member => member.uid != data.to[i].uid);
+      io.to(data.to[i].uid).emit("newMessage", {msg: data.msg, members: members});
+    }
+  })
+
+  socket.on('typing', (req) => {
+    io.to(req.chat_id).emit("typing", req);
+  })
+
+  socket.on('disconnect', () => {
+    console.log('A user disconnected');
+  })
 
 })
 

@@ -108,6 +108,32 @@ export const select = (table, data, secure = false) => {
   });
 };
 
+export const selectSome = (table, data, cols = null) => {
+  console.log("...select data from", table);
+
+  if(data.uid) data.uid = data.uid.toLowerCase();
+
+  const keys = Object.keys(data);
+  const values = Object.values(data);
+  const where = keys.map((key) => key + "=?").join(" AND ");
+  const params = cols ? cols.join(", ") : "*";
+
+  const query = "SELECT " + params + " FROM " + table + " WHERE " + where;
+
+  return new Promise((resolve) => {
+    client.execute(query, values, { prepare: true }, (err, res) => {
+      if (err) resolve({ ...err, ...{ error: 1 } });
+
+      if (!res || res.rows.length <= 0) return resolve({ notfound: 1 });
+
+      res = res.rows[0];
+      console.log(res);
+
+      resolve(res);
+    });
+  });
+};
+
 export const insert = async (table, data) => {
   console.log("...inserting data into", table);
 
@@ -208,8 +234,38 @@ export const checkPassword = async (data) => {
 
   const [password, salt] = await bcrypt.hash(data.password, user.salt);
 
+  const userPassword = user.password;
+  delete user.password;
+  delete user.salt;
+
+  if (user.chats) {
+    const chats = {};
+
+    for (let i = 0; i < user.chats.length; i++) {
+      let key = user.chats[i];
+      key = key.includes(":") ? key.split(":")[1] : key;
+      
+      chats[key] = await getChat({chat_id: key});
+      chats[key].members = chats[key].members.filter(member => member.uid != user.uid);
+    }
+
+    user.chats = chats;
+  }
+
+  if (user.friends) {
+    for (let i = 0; i < user.friends.length; i++) {
+      user.friends[i] = await selectSome('users', { uid: user.friends[i] }, ['uid', 'displayname']);
+    }
+  }
+
+  if (user.requests) {
+    for (let i = 0; i < user.requests.length; i++) {
+      user.requests[i] = await selectSome('users', { uid: user.requests[i] }, ['uid', 'displayname']);
+    }
+  }
+
   return new Promise((resolve) => {
-    let result = password == user.password ? { valid: true } : { valid: false };
+    let result = password == userPassword ? { valid: true, data: user } : { valid: false };
     resolve(result);
   });
 };
@@ -610,7 +666,7 @@ export const getChat = async (data) => {
   let members = [];
 
   for(let j = 0; j < chat.members.length; j++) {
-    let memberInfo = await select('users', {uid: chat.members[j]});
+    let memberInfo = await selectSome('users', {uid: chat.members[j]}, ['uid', 'displayname']);
     if (memberInfo.error) return new Promise(resolve => resolve(memberInfo));
 
     members.push(memberInfo);

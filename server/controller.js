@@ -50,31 +50,46 @@ export const updateUser = (req, res) =>
     .update("users", { keys: { uid: req.params.id }, ...req.body })
     .then((data) => handle(data, res));
 
-export const addFriend = (req, res) =>
+/**************************
+Friend Controller
+**************************/
+export const addFriend = (data) => {
   cassandra
-    .friendRequest(req.body)
-    .then((data) => handle(data, res));
+    .friendRequest(data)
+    .then((data) => data);
+  
+  return new Promise(resolve => resolve());
+}
+  
+export const acceptRequest = (data) => {
+  cassandra
+    .acceptRequest(data)
+    .then((data) => data);
+  
+  return new Promise(resolve => resolve());
+}
 
-export const acceptRequest = (req, res) =>
+export const rejectRequest = (data) =>
   cassandra
-    .acceptRequest(req.body)
-    .then((data) => handle(data, res));
+    .rejectRequest(data)
+    .then((data) => data);
 
-export const rejectRequest = (req, res) =>
+export const unfriend = (data) => {
   cassandra
-    .rejectRequest(req.body)
-    .then((data) => handle(data, res));
+    .unfriend(data)
+    .then((data) => data);
+
+  return new Promise(resolve => resolve());
+}
 
 export const checkRequest = (req, res) =>
   cassandra
     .checkRequest(req.body)
     .then((data) => handle(data, res));
 
-export const unfriend = (req, res) =>
-  cassandra
-    .unfriend(req.body)
-    .then((data) => handle(data, res));
-
+/***************************
+Messages Controller
+****************************/
 export const getMessages = (chatID, res) => {
   cassandra
     .getMessages({chat_id: chatID})
@@ -83,15 +98,17 @@ export const getMessages = (chatID, res) => {
   return new Promise(resolve => resolve(chatID))
 }
 
-export const newMessage = async (req, res) => {
-  const data = await cassandra
-    .insertMessageEverywhere(req)  
-    res(req);
+export const newMessage = async (data) => {
+  cassandra
+    .insertMessageEverywhere(data)  
   
-  return new Promise(resolve => resolve(req));
+  return new Promise(resolve => resolve());
   
 }
 
+/****************************
+Interests Controller
+*****************************/
 export const addInterest = (req, res) => {
   cassandra
     .addInterest(req.body)
@@ -103,6 +120,10 @@ export const removeInterest = (req, res) => {
     .removeInterest(req.body)
     .then(data => handle(data, res));
 }
+
+/****************************
+Chats Controller
+*****************************/
 
 export const startChat = (req, res) => {
   cassandra
